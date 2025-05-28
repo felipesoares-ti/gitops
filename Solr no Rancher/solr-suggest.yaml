@@ -1,0 +1,812 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: Bundle
+metadata:
+  creationTimestamp: '2024-11-21T22:47:38Z'
+  finalizers:
+    - fleet.cattle.io/bundle-finalizer
+  generation: 62
+  labels:
+    fleet.cattle.io/commit: 710a5d85fdf9058a8f3cb5c66b76282d9fae7965
+    fleet.cattle.io/repo-name: gitlab-tcu
+  managedFields:
+    - apiVersion: fleet.cattle.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:finalizers:
+            .: {}
+            v:"fleet.cattle.io/bundle-finalizer": {}
+      manager: fleetcontroller
+      operation: Update
+      time: '2024-12-26T23:15:39Z'
+    - apiVersion: fleet.cattle.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:status:
+          .: {}
+          f:conditions: {}
+          f:display:
+            .: {}
+            f:readyClusters: {}
+          f:maxNew: {}
+          f:maxUnavailable: {}
+          f:maxUnavailablePartitions: {}
+          f:observedGeneration: {}
+          f:partitions: {}
+          f:resourceKey: {}
+          f:resourcesSha256Sum: {}
+          f:summary:
+            .: {}
+            f:desiredReady: {}
+            f:ready: {}
+          f:unavailable: {}
+          f:unavailablePartitions: {}
+      manager: fleetcontroller
+      operation: Update
+      subresource: status
+      time: '2025-05-06T01:31:11Z'
+    - apiVersion: fleet.cattle.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:labels:
+            .: {}
+            f:fleet.cattle.io/commit: {}
+            f:fleet.cattle.io/repo-name: {}
+        f:spec:
+          .: {}
+          f:defaultNamespace: {}
+          f:forceSyncGeneration: {}
+          f:ignore: {}
+          f:resources: {}
+          f:targetRestrictions: {}
+          f:targets: {}
+      manager: fleet
+      operation: Update
+      time: '2025-05-23T22:28:06Z'
+  name: solr-suggest
+  namespace: fleet-default
+  resourceVersion: '645368686'
+  uid: 19745db5-3e52-4df4-badc-bcb80ac9aaa8
+spec:
+  defaultNamespace: solr
+  forceSyncGeneration: 166
+  ignore: {}
+  resources:
+    - content: |-
+        defaultNamespace: solr
+        name: solr-suggest
+      name: fleet.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          name: solr-suggest-build-acordao
+        spec:
+          schedule: "0 23 * * 6"
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          successfulJobsHistoryLimit: 3
+          suspend: false
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    - name: solr-suggest-build
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      command:
+                        - /bin/bash
+                        - '-ec'
+                        - |
+                          # Obtém os endereços IP dos hosts Solr
+                          ips=$(for i in $(seq 0 $((QTD_PODS_SOLR - 1))); do  
+                              getent hosts solr-$i.solr-headless.solr.svc.cluster.local | awk '{print $2}'; 
+                          done;)
+                          
+                          echo $ips
+
+                          # Lista de coleções a partir da variável de ambiente
+                          collections=(${COLLECTIONS//,/ })
+
+                          # Gera comandos curl para cada endereço IP e coleção de forma assíncrona
+                          for addr in $ips; do 
+                              for collection in "${collections[@]}"; do
+                                  url="http://${addr}:8983/solr/${collection}/suggest?suggest=true&suggest.dictionary=autoSuggest&wt=json&suggest.build=true"
+                                  echo "Executando curl para: $url"
+                                  curl -s -u admin:${PASS} --location "$url" &
+                              done
+                          done
+                      env:
+                        - name: QTD_PODS_SOLR
+                          value: "5"  # Ajuste este valor conforme necessário
+                        - name: COLLECTIONS
+                          value: "acordao-completo" # Ajuste este valor conforme necessário
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+      name: suggest-build-acordao.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          name: solr-suggest-build-boletins
+        spec:
+          schedule: "0 22 * * 6"
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          successfulJobsHistoryLimit: 3
+          suspend: false
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    - name: solr-suggest-build
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      command:
+                        - /bin/bash
+                        - '-ec'
+                        - |
+                          # Obtém os endereços IP dos hosts Solr
+                          ips=$(for i in $(seq 0 $((QTD_PODS_SOLR - 1))); do  
+                              getent hosts solr-$i.solr-headless.solr.svc.cluster.local | awk '{print $2}'; 
+                          done;)
+                          
+                          echo $ips
+
+                          # Lista de coleções a partir da variável de ambiente
+                          collections=(${COLLECTIONS//,/ })
+
+                          # Gera comandos curl para cada endereço IP e coleção de forma assíncrona
+                          for addr in $ips; do 
+                              for collection in "${collections[@]}"; do
+                                  url="http://${addr}:8983/solr/${collection}/suggest?suggest=true&suggest.dictionary=autoSuggest&wt=json&suggest.build=true"
+                                  echo "Executando curl para: $url"
+                                  curl -s -u admin:${PASS} --location "$url" &
+                              done
+                          done
+                      env:
+                        - name: QTD_PODS_SOLR
+                          value: "5"  # Ajuste este valor conforme necessário
+                        - name: COLLECTIONS
+                          value: "boletim-pessoal,boletim-jurisprudencia,informativo-lc" # Ajuste este valor conforme necessário
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+      name: suggest-build-boletins.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          name: solr-suggest-build-dou
+        spec:
+          schedule: "0 21 * * 0"  # Agendamento diário às 23:00
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          successfulJobsHistoryLimit: 3
+          suspend: false
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    - name: solr-suggest-build
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      command:
+                        - /bin/bash
+                        - '-ec'
+                        - |
+                          # Obtém os endereços IP dos hosts Solr
+                          ips=$(for i in $(seq 0 $((QTD_PODS_SOLR - 1))); do  
+                              getent hosts solr-$i.solr-headless.solr.svc.cluster.local | awk '{print $2}'; 
+                          done;)
+                          
+                          echo $ips
+
+                          # Lista de coleções a partir da variável de ambiente
+                          collections=(${COLLECTIONS//,/ })
+
+                          # Gera comandos curl para cada endereço IP e coleção de forma assíncrona
+                          for addr in $ips; do 
+                              for collection in "${collections[@]}"; do
+                                  url="http://${addr}:8983/solr/${collection}/suggest?suggest=true&suggest.dictionary=autoSuggest&wt=json&suggest.build=true"
+                                  echo "Executando curl para: $url"
+                                  curl -s -u admin:${PASS} --location "$url" &
+                              done
+                          done
+                      env:
+                        - name: QTD_PODS_SOLR
+                          value: "5"  # Ajuste este valor conforme necessário
+                        - name: COLLECTIONS
+                          value: "dou" # Ajuste este valor conforme necessário
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+      name: suggest-build-dou.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          name: solr-suggest-build-jurisprudencia-selecionada
+        spec:
+          schedule: "0 23 * * 6"
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          successfulJobsHistoryLimit: 3
+          suspend: false
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    - name: solr-suggest-build
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      command:
+                        - /bin/bash
+                        - '-ec'
+                        - |
+                          # Obtém os endereços IP dos hosts Solr
+                          ips=$(for i in $(seq 0 $((QTD_PODS_SOLR - 1))); do  
+                              getent hosts solr-$i.solr-headless.solr.svc.cluster.local | awk '{print $2}'; 
+                          done;)
+                          
+                          echo $ips
+
+                          # Lista de coleções a partir da variável de ambiente
+                          collections=(${COLLECTIONS//,/ })
+
+                          # Gera comandos curl para cada endereço IP e coleção de forma assíncrona
+                          for addr in $ips; do 
+                              for collection in "${collections[@]}"; do
+                                  url="http://${addr}:8983/solr/${collection}/suggest?suggest=true&suggest.dictionary=autoSuggest&wt=json&suggest.build=true"
+                                  echo "Executando curl para: $url"
+                                  curl -s -u admin:${PASS} --location "$url"
+                              done
+                          done
+                      env:
+                        - name: QTD_PODS_SOLR
+                          value: "5"  # Ajuste este valor conforme necessário
+                        - name: COLLECTIONS
+                          value: "jurisprudencia-selecionada" # Ajuste este valor conforme necessário
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+      name: suggest-build-jurisprudencia-selecionada.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          name: solr-suggest-build-ministros
+        spec:
+          schedule: "0 23 * * 6"
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          successfulJobsHistoryLimit: 3
+          suspend: false
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    - name: solr-suggest-build
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      command:
+                        - /bin/bash
+                        - '-ec'
+                        - |
+                          # Obtém os endereços IP dos hosts Solr
+                          ips=$(for i in $(seq 0 $((QTD_PODS_SOLR - 1))); do  
+                              getent hosts solr-$i.solr-headless.solr.svc.cluster.local | awk '{print $2}'; 
+                          done;)
+                          
+                          echo $ips
+
+                          # Lista de coleções a partir da variável de ambiente
+                          collections=(${COLLECTIONS//,/ })
+
+                          # Gera comandos curl para cada endereço IP e coleção de forma assíncrona
+                          for addr in $ips; do 
+                              for collection in "${collections[@]}"; do
+                                  url="http://${addr}:8983/solr/${collection}/suggest?suggest=true&suggest.dictionary=autoSuggest&wt=json&suggest.build=true"
+                                  echo "Executando curl para: $url"
+                                  curl -s -u admin:${PASS} --location "$url" &
+                              done
+                          done
+                      env:
+                        - name: QTD_PODS_SOLR
+                          value: "5"  # Ajuste este valor conforme necessário
+                        - name: COLLECTIONS
+                          value: "ministros" # Ajuste este valor conforme necessário
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+      name: suggest-build-ministros.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          name: solr-suggest-build-norma
+        spec:
+          schedule: "0 23 * * 6"
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          successfulJobsHistoryLimit: 3
+          suspend: false
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    - name: solr-suggest-build
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      command:
+                        - /bin/bash
+                        - '-ec'
+                        - |
+                          # Obtém os endereços IP dos hosts Solr
+                          ips=$(for i in $(seq 0 $((QTD_PODS_SOLR - 1))); do  
+                              getent hosts solr-$i.solr-headless.solr.svc.cluster.local | awk '{print $2}'; 
+                          done;)
+                          
+                          echo $ips
+
+                          # Lista de coleções a partir da variável de ambiente
+                          collections=(${COLLECTIONS//,/ })
+
+                          # Gera comandos curl para cada endereço IP e coleção de forma assíncrona
+                          for addr in $ips; do 
+                              for collection in "${collections[@]}"; do
+                                  url="http://${addr}:8983/solr/${collection}/suggest?suggest=true&suggest.dictionary=autoSuggest&wt=json&suggest.build=true"
+                                  echo "Executando curl para: $url"
+                                  curl -s -u admin:${PASS} --location "$url" &
+                              done
+                          done
+                      env:
+                        - name: QTD_PODS_SOLR
+                          value: "5"  # Ajuste este valor conforme necessário
+                        - name: COLLECTIONS
+                          value: "norma" # Ajuste este valor conforme necessário
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+      name: suggest-build-norma.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          name: solr-suggest-build-processo-externo
+        spec:
+          schedule: "0 22 * * 0"
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          successfulJobsHistoryLimit: 3
+          suspend: false
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    - name: solr-suggest-build
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      command:
+                        - /bin/bash
+                        - '-ec'
+                        - |
+                          # Obtém os endereços IP dos hosts Solr
+                          ips=$(for i in $(seq 0 $((QTD_PODS_SOLR - 1))); do  
+                              getent hosts solr-$i.solr-headless.solr.svc.cluster.local | awk '{print $2}'; 
+                          done;)
+                          
+                          echo $ips
+
+                          # Lista de coleções a partir da variável de ambiente
+                          collections=(${COLLECTIONS//,/ })
+
+                          # Gera comandos curl para cada endereço IP e coleção de forma assíncrona
+                          for addr in $ips; do 
+                              for collection in "${collections[@]}"; do
+                                  url="http://${addr}:8983/solr/${collection}/suggest?suggest=true&suggest.dictionary=autoSuggest&wt=json&suggest.build=true"
+                                  echo "Executando curl para: $url"
+                                  curl -s -u admin:${PASS} --location "$url" &
+                              done
+                          done
+                      env:
+                        - name: QTD_PODS_SOLR
+                          value: "5"  # Ajuste este valor conforme necessário
+                        - name: COLLECTIONS
+                          value: "processo-externo" # Ajuste este valor conforme necessário
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+      name: suggest-build-processo-externo.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          name: solr-suggest-build-processo-interno
+        spec:
+          schedule: "30 23 * * 5"
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          successfulJobsHistoryLimit: 3
+          suspend: false
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    - name: solr-suggest-build
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      command:
+                        - /bin/bash
+                        - '-ec'
+                        - |
+                          # Obtém os endereços IP dos hosts Solr
+                          ips=$(for i in $(seq 0 $((QTD_PODS_SOLR - 1))); do  
+                              getent hosts solr-$i.solr-headless.solr.svc.cluster.local | awk '{print $2}'; 
+                          done;)
+                          
+                          echo $ips
+
+                          # Lista de coleções a partir da variável de ambiente
+                          collections=(${COLLECTIONS//,/ })
+
+                          # Gera comandos curl para cada endereço IP e coleção de forma assíncrona
+                          for addr in $ips; do 
+                              for collection in "${collections[@]}"; do
+                                  url="http://${addr}:8983/solr/${collection}/suggest?suggest=true&suggest.dictionary=autoSuggest&wt=json&suggest.build=true"
+                                  echo "Executando curl para: $url"
+                                  curl -s -u admin:${PASS} --location "$url" &
+                              done
+                          done
+                      env:
+                        - name: QTD_PODS_SOLR
+                          value: "5"  # Ajuste este valor conforme necessário
+                        - name: COLLECTIONS
+                          value: "processo-interno" # Ajuste este valor conforme necessário
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+      name: suggest-build-processo-interno.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          name: solr-suggest-build-sumula
+        spec:
+          schedule: "30 22 * * 6"
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          successfulJobsHistoryLimit: 3
+          suspend: false
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    - name: solr-suggest-build
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      command:
+                        - /bin/bash
+                        - '-ec'
+                        - |
+                          # Obtém os endereços IP dos hosts Solr
+                          ips=$(for i in $(seq 0 $((QTD_PODS_SOLR - 1))); do  
+                              getent hosts solr-$i.solr-headless.solr.svc.cluster.local | awk '{print $2}'; 
+                          done;)
+                          
+                          echo $ips
+
+                          # Lista de coleções a partir da variável de ambiente
+                          collections=(${COLLECTIONS//,/ })
+
+                          # Gera comandos curl para cada endereço IP e coleção de forma assíncrona
+                          for addr in $ips; do 
+                              for collection in "${collections[@]}"; do
+                                  url="http://${addr}:8983/solr/${collection}/suggest?suggest=true&suggest.dictionary=autoSuggest&wt=json&suggest.build=true"
+                                  echo "Executando curl para: $url"
+                                  curl -s -u admin:${PASS} --location "$url" &
+                              done
+                          done
+                      env:
+                        - name: QTD_PODS_SOLR
+                          value: "5"  # Ajuste este valor conforme necessário
+                        - name: COLLECTIONS
+                          value: "sumula" # Ajuste este valor conforme necessário
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+      name: suggest-build-sumula.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          name: solr-suggest-status
+        spec:
+          schedule: "0 7 * * 1"
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          successfulJobsHistoryLimit: 3
+          suspend: false
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    - name: solr-suggest-status
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      command:
+                        - /bin/bash
+                        - '-ec'
+                        - |
+                          # Obtém os endereços IP dos hosts Solr
+                          ips=$(
+                            for i in $(seq 0 $((QTD_PODS_SOLR - 1))); do  
+                              getent hosts solr-$i.solr-headless.solr.svc.cluster.local | awk '{print $2}'; 
+                            done;
+                          )
+                          
+                          # Lista de coleções a partir da variável de ambiente
+                          collections=(${COLLECTIONS//,/ })
+
+                          # Gera comandos curl para cada endereço IP e coleção de forma assíncrona
+                          for addr in $ips; do 
+                            for collection in "${collections[@]}"; do
+                              url="http://${addr}:8983/solr/${collection}/suggest?suggest=true&suggest.dictionary=autoSuggest&wt=json&suggest.q=lega"
+                              echo "Executando curl para: $url"
+                              curl -s -u admin:${PASS} --location "$url"
+                            done
+                          done
+                      env:
+                        - name: QTD_PODS_SOLR
+                          value: "5"  # Ajuste este valor conforme necessário
+                        - name: COLLECTIONS
+                          value: "jurisprudencia-selecionada" # Ajuste este valor conforme necessário
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+      name: suggest-status.yaml
+  targetRestrictions:
+    - clusterName: c-5wl22
+  targets:
+    - clusterName: c-5wl22
+      ignore: {}
+status:
+  conditions:
+    - lastUpdateTime: '2025-05-06T01:31:09Z'
+      status: 'True'
+      type: Ready
+    - lastUpdateTime: '2024-12-26T23:07:47Z'
+      status: 'True'
+      type: Processed
+  display:
+    readyClusters: 1/1
+  maxNew: 50
+  maxUnavailable: 1
+  maxUnavailablePartitions: 0
+  observedGeneration: 62
+  partitions:
+    - count: 1
+      maxUnavailable: 1
+      name: All
+      summary:
+        desiredReady: 1
+        ready: 1
+  resourceKey:
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-suggest-build-acordao
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-suggest-build-boletins
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-suggest-build-dou
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-suggest-build-jurisprudencia-selecionada
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-suggest-build-ministros
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-suggest-build-norma
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-suggest-build-processo-externo
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-suggest-build-processo-interno
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-suggest-build-sumula
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-suggest-status
+      namespace: solr
+  resourcesSha256Sum: 78688d815035f74ea82cd493463712f726239f47da722950e672e6dd08ccd353
+  summary:
+    desiredReady: 1
+    ready: 1
+  unavailable: 0
+  unavailablePartitions: 0

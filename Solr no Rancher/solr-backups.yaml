@@ -1,0 +1,1034 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: Bundle
+metadata:
+  creationTimestamp: '2024-11-21T22:30:59Z'
+  finalizers:
+    - fleet.cattle.io/bundle-finalizer
+  generation: 46
+  labels:
+    fleet.cattle.io/commit: 710a5d85fdf9058a8f3cb5c66b76282d9fae7965
+    fleet.cattle.io/repo-name: gitlab-tcu
+  managedFields:
+    - apiVersion: fleet.cattle.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:finalizers:
+            .: {}
+            v:"fleet.cattle.io/bundle-finalizer": {}
+      manager: fleetcontroller
+      operation: Update
+      time: '2024-12-26T23:15:39Z'
+    - apiVersion: fleet.cattle.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:status:
+          .: {}
+          f:conditions: {}
+          f:display:
+            .: {}
+            f:readyClusters: {}
+          f:maxNew: {}
+          f:maxUnavailable: {}
+          f:maxUnavailablePartitions: {}
+          f:observedGeneration: {}
+          f:partitions: {}
+          f:resourceKey: {}
+          f:resourcesSha256Sum: {}
+          f:summary:
+            .: {}
+            f:desiredReady: {}
+            f:ready: {}
+          f:unavailable: {}
+          f:unavailablePartitions: {}
+      manager: fleetcontroller
+      operation: Update
+      subresource: status
+      time: '2025-05-06T01:31:12Z'
+    - apiVersion: fleet.cattle.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:labels:
+            .: {}
+            f:fleet.cattle.io/commit: {}
+            f:fleet.cattle.io/repo-name: {}
+        f:spec:
+          .: {}
+          f:defaultNamespace: {}
+          f:forceSyncGeneration: {}
+          f:ignore: {}
+          f:resources: {}
+          f:targetRestrictions: {}
+          f:targets: {}
+      manager: fleet
+      operation: Update
+      time: '2025-05-23T22:28:05Z'
+  name: solr-backups
+  namespace: fleet-default
+  resourceVersion: '645368680'
+  uid: c5977e32-5426-4bca-a275-c26c61f722e3
+spec:
+  defaultNamespace: solr
+  forceSyncGeneration: 166
+  ignore: {}
+  resources:
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          # NOME DO POD COMO APARECE NO RANCHER/K8S, IMPORANTE PARA IDENTIFICAR
+          name: solr-bkp-acordao-completo
+        spec:
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    # COMANDO QUE CHAMA A API DO SOLR E EXECUTA O BACKUP
+                    - command:
+                        - /bin/bash
+                        - '-ec'
+                        - >
+                          curl -v -u admin:${PASS} --location "http://${DOMINIO}/solr/admin/collections?action=BACKUP&collection=${COLLECTION}&location=${LOCATION}&name=${NAME}&async=$(ASYNC)"
+                      env:
+                        # URL DO SOLR. O VALOR ABAIXO EH O SERVICE:PORTA
+                        - name: DOMINIO
+                          value: 'solr.solr.svc.cluster.local:8983'
+                        # NOME DA COLLECTION QUE SERA FEITO O BACKUP
+                        - name: COLLECTION
+                          value: 'acordao-completo'
+                        # LOCAL ONDE O BACKUP SERA SALVO. O PATH ABAIXO EH UM NFS MONTADO NOS PODS DO SOLR
+                        - name: LOCATION
+                          value: '/bitnami/backups/'
+                        # NOME DO BACKUP
+                        - name: NAME
+                          value: acordao-completo-bkp
+                        # SENHA DO SOLR. NAO MEXER
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                        - name: ASYNC
+                          value: "$(date +%Y%m%d%H%M%S)"
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      
+                      # NOME DO CONTAINER DENTRO DO POD
+                      name: solr-bkp-acordao-completo
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+          schedule: '0 11 * * *'
+          successfulJobsHistoryLimit: 3
+          suspend: false
+      name: cron-backup-acordao.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          # NOME DO POD COMO APARECE NO RANCHER/K8S, IMPORANTE PARA IDENTIFICAR
+          name: solr-bkp-boletim-jurisprudencia
+        spec:
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    # COMANDO QUE CHAMA A API DO SOLR E EXECUTA O BACKUP
+                    - command:
+                        - /bin/bash
+                        - '-ec'
+                        - >
+                          curl -v -u admin:${PASS} --location "http://${DOMINIO}/solr/admin/collections?action=BACKUP&collection=${COLLECTION}&location=${LOCATION}&name=${NAME}&async=$(ASYNC)"
+                      env:
+                        # URL DO SOLR. O VALOR ABAIXO EH O SERVICE:PORTA
+                        - name: DOMINIO
+                          value: 'solr.solr.svc.cluster.local:8983'
+                        # NOME DA COLLECTION QUE SERA FEITO O BACKUP
+                        - name: COLLECTION
+                          value: 'boletim-jurisprudencia'
+                        # LOCAL ONDE O BACKUP SERA SALVO. O PATH ABAIXO EH UM NFS MONTADO NOS PODS DO SOLR
+                        - name: LOCATION
+                          value: '/bitnami/backups/'
+                        # NOME DO BACKUP
+                        - name: NAME
+                          value: boletim-jurisprudencia-bkp
+                        # SENHA DO SOLR. NAO MEXER
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                        - name: ASYNC
+                          value: "$(date +%Y%m%d%H%M%S)"
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      
+                      # NOME DO CONTAINER DENTRO DO POD
+                      name: solr-bkp-boletim-jurisprudencia
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+          schedule: '0 10 * * *'
+          successfulJobsHistoryLimit: 3
+          suspend: false
+      name: cron-backup-boletim-jurisprudencia.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          # NOME DO POD COMO APARECE NO RANCHER/K8S, IMPORANTE PARA IDENTIFICAR
+          name: solr-bkp-boletim-pessoal
+        spec:
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    # COMANDO QUE CHAMA A API DO SOLR E EXECUTA O BACKUP
+                    - command:
+                        - /bin/bash
+                        - '-ec'
+                        - >
+                          curl -v -u admin:${PASS} --location "http://${DOMINIO}/solr/admin/collections?action=BACKUP&collection=${COLLECTION}&location=${LOCATION}&name=${NAME}&async=$(ASYNC)"
+                      env:
+                        # URL DO SOLR. O VALOR ABAIXO EH O SERVICE:PORTA
+                        - name: DOMINIO
+                          value: 'solr.solr.svc.cluster.local:8983'
+                        # NOME DA COLLECTION QUE SERA FEITO O BACKUP
+                        - name: COLLECTION
+                          value: 'boletim-pessoal'
+                        # LOCAL ONDE O BACKUP SERA SALVO. O PATH ABAIXO EH UM NFS MONTADO NOS PODS DO SOLR
+                        - name: LOCATION
+                          value: '/bitnami/backups/'
+                        # NOME DO BACKUP
+                        - name: NAME
+                          value: boletim-pessoal-bkp
+                        # SENHA DO SOLR. NAO MEXER
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                        - name: ASYNC
+                          value: "$(date +%Y%m%d%H%M%S)"
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      
+                      # NOME DO CONTAINER DENTRO DO POD
+                      name: solr-bkp-boletim-pessoal
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+          schedule: '0 10 * * *'
+          successfulJobsHistoryLimit: 3
+          suspend: false
+      name: cron-backup-boletim-pessoal.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          # NOME DO POD COMO APARECE NO RANCHER/K8S, IMPORANTE PARA IDENTIFICAR
+          name: solr-bkp-dou
+        spec:
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    # COMANDO QUE CHAMA A API DO SOLR E EXECUTA O BACKUP
+                    - command:
+                        - /bin/bash
+                        - '-ec'
+                        - >
+                          curl -v -u admin:${PASS} --location "http://${DOMINIO}/solr/admin/collections?action=BACKUP&collection=${COLLECTION}&location=${LOCATION}&name=${NAME}&async=$(ASYNC)"
+                      env:
+                        # URL DO SOLR. O VALOR ABAIXO EH O SERVICE:PORTA
+                        - name: DOMINIO
+                          value: 'solr.solr.svc.cluster.local:8983'
+                        # NOME DA COLLECTION QUE SERA FEITO O BACKUP
+                        - name: COLLECTION
+                          value: 'dou'
+                        # LOCAL ONDE O BACKUP SERA SALVO. O PATH ABAIXO EH UM NFS MONTADO NOS PODS DO SOLR
+                        - name: LOCATION
+                          value: '/bitnami/backups/'
+                        # NOME DO BACKUP
+                        - name: NAME
+                          value: dou-bkp
+                        # SENHA DO SOLR. NAO MEXER
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                        - name: ASYNC
+                          value: "$(date +%Y%m%d%H%M%S)"
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      
+                      # NOME DO CONTAINER DENTRO DO POD
+                      name: solr-bkp-dou
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+          schedule: '0 11 * * *'
+          successfulJobsHistoryLimit: 3
+          suspend: false
+      name: cron-backup-dou.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          # NOME DO POD COMO APARECE NO RANCHER/K8S, IMPORANTE PARA IDENTIFICAR
+          name: solr-bkp-informativo-lc
+        spec:
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    # COMANDO QUE CHAMA A API DO SOLR E EXECUTA O BACKUP
+                    - command:
+                        - /bin/bash
+                        - '-ec'
+                        - >
+                          curl -v -u admin:${PASS} --location "http://${DOMINIO}/solr/admin/collections?action=BACKUP&collection=${COLLECTION}&location=${LOCATION}&name=${NAME}&async=$(ASYNC)"
+                      env:
+                        # URL DO SOLR. O VALOR ABAIXO EH O SERVICE:PORTA
+                        - name: DOMINIO
+                          value: 'solr.solr.svc.cluster.local:8983'
+                        # NOME DA COLLECTION QUE SERA FEITO O BACKUP
+                        - name: COLLECTION
+                          value: 'informativo-lc'
+                        # LOCAL ONDE O BACKUP SERA SALVO. O PATH ABAIXO EH UM NFS MONTADO NOS PODS DO SOLR
+                        - name: LOCATION
+                          value: '/bitnami/backups/'
+                        # NOME DO BACKUP
+                        - name: NAME
+                          value: informativo-lc-bkp
+                        # SENHA DO SOLR. NAO MEXER
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                        - name: ASYNC
+                          value: "$(date +%Y%m%d%H%M%S)"
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      
+                      # NOME DO CONTAINER DENTRO DO POD
+                      name: solr-bkp-informativo-lc
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+          schedule: '0 10 * * *'
+          successfulJobsHistoryLimit: 3
+          suspend: false
+      name: cron-backup-informativo-lc.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          # NOME DO POD COMO APARECE NO RANCHER/K8S, IMPORANTE PARA IDENTIFICAR
+          name: solr-bkp-jurisprudencia-selecionada
+        spec:
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    # COMANDO QUE CHAMA A API DO SOLR E EXECUTA O BACKUP
+                    - command:
+                        - /bin/bash
+                        - '-ec'
+                        - >
+                          curl -v -u admin:${PASS} --location "http://${DOMINIO}/solr/admin/collections?action=BACKUP&collection=${COLLECTION}&location=${LOCATION}&name=${NAME}&async=$(ASYNC)"
+                      env:
+                        # URL DO SOLR. O VALOR ABAIXO EH O SERVICE:PORTA
+                        - name: DOMINIO
+                          value: 'solr.solr.svc.cluster.local:8983'
+                        # NOME DA COLLECTION QUE SERA FEITO O BACKUP
+                        - name: COLLECTION
+                          value: 'jurisprudencia-selecionada'
+                        # LOCAL ONDE O BACKUP SERA SALVO. O PATH ABAIXO EH UM NFS MONTADO NOS PODS DO SOLR
+                        - name: LOCATION
+                          value: '/bitnami/backups/'
+                        # NOME DO BACKUP
+                        - name: NAME
+                          value: jurisprudencia-selecionada-bkp
+                        # SENHA DO SOLR. NAO MEXER
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                        - name: ASYNC
+                          value: "$(date +%Y%m%d%H%M%S)"
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      
+                      # NOME DO CONTAINER DENTRO DO POD
+                      name: solr-bkp-jurisprudencia-selecionada
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+          schedule: '0 11 * * *'
+          successfulJobsHistoryLimit: 3
+          suspend: false
+      name: cron-backup-jurisprudencia-selecionada.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          # NOME DO POD COMO APARECE NO RANCHER/K8S, IMPORANTE PARA IDENTIFICAR
+          name: solr-bkp-ministros
+        spec:
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    # COMANDO QUE CHAMA A API DO SOLR E EXECUTA O BACKUP
+                    - command:
+                        - /bin/bash
+                        - '-ec'
+                        - >
+                          curl -v -u admin:${PASS} --location "http://${DOMINIO}/solr/admin/collections?action=BACKUP&collection=${COLLECTION}&location=${LOCATION}&name=${NAME}&async=$(ASYNC)"
+                      env:
+                        # URL DO SOLR. O VALOR ABAIXO EH O SERVICE:PORTA
+                        - name: DOMINIO
+                          value: 'solr.solr.svc.cluster.local:8983'
+                        # NOME DA COLLECTION QUE SERA FEITO O BACKUP
+                        - name: COLLECTION
+                          value: 'ministros'
+                        # LOCAL ONDE O BACKUP SERA SALVO. O PATH ABAIXO EH UM NFS MONTADO NOS PODS DO SOLR
+                        - name: LOCATION
+                          value: '/bitnami/backups/'
+                        # NOME DO BACKUP
+                        - name: NAME
+                          value: ministros-bkp
+                        # SENHA DO SOLR. NAO MEXER
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                        - name: ASYNC
+                          value: "$(date +%Y%m%d%H%M%S)"
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      
+                      # NOME DO CONTAINER DENTRO DO POD
+                      name: solr-bkp-ministros
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+          schedule: '0 11 * * *'
+          successfulJobsHistoryLimit: 3
+          suspend: false
+      name: cron-backup-ministros.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          # NOME DO POD COMO APARECE NO RANCHER/K8S, IMPORANTE PARA IDENTIFICAR
+          name: solr-bkp-norma
+        spec:
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    # COMANDO QUE CHAMA A API DO SOLR E EXECUTA O BACKUP
+                    - command:
+                        - /bin/bash
+                        - '-ec'
+                        - >
+                          curl -v -u admin:${PASS} --location "http://${DOMINIO}/solr/admin/collections?action=BACKUP&collection=${COLLECTION}&location=${LOCATION}&name=${NAME}&async=$(ASYNC)"
+                      env:
+                        # URL DO SOLR. O VALOR ABAIXO EH O SERVICE:PORTA
+                        - name: DOMINIO
+                          value: 'solr.solr.svc.cluster.local:8983'
+                        # NOME DA COLLECTION QUE SERA FEITO O BACKUP
+                        - name: COLLECTION
+                          value: 'norma'
+                        # LOCAL ONDE O BACKUP SERA SALVO. O PATH ABAIXO EH UM NFS MONTADO NOS PODS DO SOLR
+                        - name: LOCATION
+                          value: '/bitnami/backups/'
+                        # NOME DO BACKUP
+                        - name: NAME
+                          value: norma-bkp
+                        # SENHA DO SOLR. NAO MEXER
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                        - name: ASYNC
+                          value: "$(date +%Y%m%d%H%M%S)"
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      
+                      # NOME DO CONTAINER DENTRO DO POD
+                      name: solr-bkp-norma
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+          schedule: '0 10 * * *'
+          successfulJobsHistoryLimit: 3
+          suspend: false
+      name: cron-backup-norma.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          # NOME DO POD COMO APARECE NO RANCHER/K8S, IMPORANTE PARA IDENTIFICAR
+          name: solr-bkp-processo-externo
+        spec:
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    # COMANDO QUE CHAMA A API DO SOLR E EXECUTA O BACKUP
+                    - command:
+                        - /bin/bash
+                        - '-ec'
+                        - >
+                          curl -v -u admin:${PASS} --location "http://${DOMINIO}/solr/admin/collections?action=BACKUP&collection=${COLLECTION}&location=${LOCATION}&name=${NAME}&async=$(ASYNC)"
+                      env:
+                        # URL DO SOLR. O VALOR ABAIXO EH O SERVICE:PORTA
+                        - name: DOMINIO
+                          value: 'solr.solr.svc.cluster.local:8983'
+                        # NOME DA COLLECTION QUE SERA FEITO O BACKUP
+                        - name: COLLECTION
+                          value: 'processo-externo'
+                        # LOCAL ONDE O BACKUP SERA SALVO. O PATH ABAIXO EH UM NFS MONTADO NOS PODS DO SOLR
+                        - name: LOCATION
+                          value: '/bitnami/backups/'
+                        # NOME DO BACKUP
+                        - name: NAME
+                          value: processo-externo-bkp
+                        # SENHA DO SOLR. NAO MEXER
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                        - name: ASYNC
+                          value: "$(date +%Y%m%d%H%M%S)"
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      
+                      # NOME DO CONTAINER DENTRO DO POD
+                      name: solr-bkp-processo-externo
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+          schedule: '0 10 * * *'
+          successfulJobsHistoryLimit: 3
+          suspend: false
+      name: cron-backup-proc_externo.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          # NOME DO POD COMO APARECE NO RANCHER/K8S, IMPORANTE PARA IDENTIFICAR
+          name: solr-bkp-processo-interno
+        spec:
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    # COMANDO QUE CHAMA A API DO SOLR E EXECUTA O BACKUP
+                    - command:
+                        - /bin/bash
+                        - '-ec'
+                        - >
+                          curl -v -u admin:${PASS} --location "http://${DOMINIO}/solr/admin/collections?action=BACKUP&collection=${COLLECTION}&location=${LOCATION}&name=${NAME}&async=$(ASYNC)"
+                      env:
+                        # URL DO SOLR. O VALOR ABAIXO EH O SERVICE:PORTA
+                        - name: DOMINIO
+                          value: 'solr.solr.svc.cluster.local:8983'
+                        # NOME DA COLLECTION QUE SERA FEITO O BACKUP
+                        - name: COLLECTION
+                          value: 'processo-interno'
+                        # LOCAL ONDE O BACKUP SERA SALVO. O PATH ABAIXO EH UM NFS MONTADO NOS PODS DO SOLR
+                        - name: LOCATION
+                          value: '/bitnami/backups/'
+                        # NOME DO BACKUP
+                        - name: NAME
+                          value: processo-interno-bkp
+                        # SENHA DO SOLR. NAO MEXER
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                        - name: ASYNC
+                          value: "$(date +%Y%m%d%H%M%S)"
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      
+                      # NOME DO CONTAINER DENTRO DO POD
+                      name: solr-bkp-processo-interno
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+          schedule: '0 11 * * *'
+          successfulJobsHistoryLimit: 3
+          suspend: false
+      name: cron-backup-proc_interno.yaml
+    - content: |
+        kind: CronJob
+        apiVersion: batch/v1
+        metadata:
+          # NOME DO POD COMO APARECE NO RANCHER/K8S, IMPORANTE PARA IDENTIFICAR
+          name: solr-bkp-sumula
+        spec:
+          concurrencyPolicy: Forbid
+          failedJobsHistoryLimit: 1
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  nodeSelector:
+                    solr: "true"
+                  tolerations:
+                  - effect: NoSchedule
+                    key: solr
+                    value: "true"
+                    operator: Equal
+                  containers:
+                    # COMANDO QUE CHAMA A API DO SOLR E EXECUTA O BACKUP
+                    - command:
+                        - /bin/bash
+                        - '-ec'
+                        - >
+                          curl -v -u admin:${PASS} --location "http://${DOMINIO}/solr/admin/collections?action=BACKUP&collection=${COLLECTION}&location=${LOCATION}&name=${NAME}&async=$(ASYNC)"
+                      env:
+                        # URL DO SOLR. O VALOR ABAIXO EH O SERVICE:PORTA
+                        - name: DOMINIO
+                          value: 'solr.solr.svc.cluster.local:8983'
+                        # NOME DA COLLECTION QUE SERA FEITO O BACKUP
+                        - name: COLLECTION
+                          value: 'sumula'
+                        # LOCAL ONDE O BACKUP SERA SALVO. O PATH ABAIXO EH UM NFS MONTADO NOS PODS DO SOLR
+                        - name: LOCATION
+                          value: '/bitnami/backups/'
+                        # NOME DO BACKUP
+                        - name: NAME
+                          value: sumula-bkp
+                        # SENHA DO SOLR. NAO MEXER
+                        - name: PASS
+                          valueFrom:
+                            secretKeyRef:
+                              key: solr-password
+                              name: solr-usr-secret
+                        - name: ASYNC
+                          value: "$(date +%Y%m%d%H%M%S)"
+                      image: bitnami/os-shell
+                      imagePullPolicy: Always
+                      
+                      # NOME DO CONTAINER DENTRO DO POD
+                      name: solr-bkp-sumula
+                      terminationMessagePath: /dev/termination-log
+                      terminationMessagePolicy: File
+                  dnsPolicy: ClusterFirst
+                  restartPolicy: Never
+                  schedulerName: default-scheduler
+                  terminationGracePeriodSeconds: 30
+          timeZone: "America/Sao_Paulo"
+          schedule: '0 10 * * *'
+          successfulJobsHistoryLimit: 3
+          suspend: false
+      name: cron-backup-sumula.yaml
+    - content: >
+        defaultNamespace: solr
+
+        name: solr-backups
+
+
+        #######
+
+        #
+
+        # EXEMPLO DE CRONJOB
+
+        #
+
+        # USO: 
+
+        # NAO ALTERAR:
+
+        #   - spec.jobTemplate.spec.template.spec.containers.env.PASS: SENHA DO
+        SOLR. NAO ALTERAR, ESTA SENHA ESTA NO VAULT
+
+        #   - spec.jobTemplate.spec.template.spec.containers.env.ASYNC: REQUEST
+        ID PARAR RASTREAR O PROCESSO, QUE EXECUTA DE FORMA ASSINCRONA
+
+        #
+
+        # Alterar os campos:
+
+        #       - metadata.name: NOME DO POD COMO APARECE NO RANCHER/K8S,
+        IMPORANTE PARA IDENTIFICAR
+
+        #       - spec.jobTemplate.spec.template.spec.containers.name: NOME DO
+        CONTAINER DENTRO DO POD
+
+        #       - spec.jobTemplate.spec.template.spec.containers.command:
+        COMANDO QUE CHAMA A API DO SOLR E EXECUTA O BACKUP
+
+        #       - spec.jobTemplate.schedule: HORARIO(GMT-3) EM QUE O CRONJOB
+        SERA EXECUTADO. O TIME ZONE ESTA PARA America/Sao_Paulo
+
+        #       - spec.jobTemplate.spec.template.spec.containers.env: 
+
+        #         - spec.jobTemplate.spec.template.spec.containers.env.DOMINIO:
+        URL DO SOLR. O VALOR ABAIXO EH O SERVICE:PORTA
+
+        #         -
+        spec.jobTemplate.spec.template.spec.containers.env.COLLECTION: NOME DA
+        COLLECTION QUE SERA FEITO O BACKUP
+
+        #         - spec.jobTemplate.spec.template.spec.containers.env.LOCATION:
+        LOCAL ONDE O BACKUP SERA SALVO. O PATH ABAIXO EH UM NFS MONTADO NOS PODS
+        DO SOLR
+
+        #         - spec.jobTemplate.spec.template.spec.containers.env.NAME:
+        NOME DO BACKUP
+
+        #
+
+        ######
+
+        #
+
+        # kind: CronJob
+
+        # apiVersion: batch/v1
+
+        # metadata:
+
+        #   # NOME DO POD COMO APARECE NO RANCHER/K8S, IMPORANTE PARA
+        IDENTIFICAR
+
+        #   name: solr-bkp-dou
+
+        # spec:
+
+        #   concurrencyPolicy: Forbid
+
+        #   failedJobsHistoryLimit: 1
+
+        #   jobTemplate:
+
+        #     spec:
+
+        #       template:
+
+        #         spec:
+
+        #           containers:
+
+        #             # COMANDO QUE CHAMA A API DO SOLR E EXECUTA O BACKUP
+
+        #             - command:
+
+        #                 - /bin/bash
+
+        #                 - '-ec'
+
+        #                 - >
+
+        #                   curl -v -u admin:${PASS} --location
+        "http://${DOMINIO}/solr/admin/collections?action=BACKUP&collection=${COLLECTION}&location=${LOCATION}&name=${NAME}&async=$(ASYNC)"
+
+        #               env:
+
+        #                 # URL DO SOLR. O VALOR ABAIXO EH O SERVICE:PORTA
+
+        #                 - name: DOMINIO
+
+        #                   value: 'solr.solr.svc.cluster.local:8983'
+
+        #                 # NOME DA COLLECTION QUE SERA FEITO O BACKUP
+
+        #                 - name: COLLECTION
+
+        #                   value: 'dou'
+
+        #                 # LOCAL ONDE O BACKUP SERA SALVO. O PATH ABAIXO EH UM
+        NFS MONTADO NOS PODS DO SOLR
+
+        #                 - name: LOCATION
+
+        #                   value: '/bitnami/backups/'
+
+        #                 # NOME DO BACKUP
+
+        #                 - name: NAME
+
+        #                   value: dou-bkp
+
+        #                 # SENHA DO SOLR. NAO MEXER
+
+        #                 - name: PASS
+
+        #                   valueFrom:
+
+        #                     secretKeyRef:
+
+        #                       key: solr-password
+
+        #                       name: solr-usr-secret
+
+        #                 - name: ASYNC
+
+        #                   value: "$(date +%Y%m%d%H%M%S)"
+
+        #               image:
+        registry.rancher.tcu.gov.br/aplicacoes/solr:9.6.0-debian-12-r3
+
+        #               imagePullPolicy: Always
+
+        #               
+
+        #               # NOME DO CONTAINER DENTRO DO POD
+
+        #               name: solr-bkp-dou
+
+        #               terminationMessagePath: /dev/termination-log
+
+        #               terminationMessagePolicy: File
+
+        #           dnsPolicy: ClusterFirst
+
+        #           restartPolicy: Never
+
+        #           schedulerName: default-scheduler
+
+        #           terminationGracePeriodSeconds: 30
+
+        #   timeZone: "America/Sao_Paulo"
+
+        #   schedule: '0 11 * * *'
+
+        #   successfulJobsHistoryLimit: 3
+
+        #   suspend: false
+
+        #
+      name: fleet.yaml
+  targetRestrictions:
+    - clusterName: c-5wl22
+  targets:
+    - clusterName: c-5wl22
+      ignore: {}
+status:
+  conditions:
+    - lastUpdateTime: '2025-05-06T01:31:11Z'
+      status: 'True'
+      type: Ready
+    - lastUpdateTime: '2024-12-26T23:07:47Z'
+      status: 'True'
+      type: Processed
+  display:
+    readyClusters: 1/1
+  maxNew: 50
+  maxUnavailable: 1
+  maxUnavailablePartitions: 0
+  observedGeneration: 46
+  partitions:
+    - count: 1
+      maxUnavailable: 1
+      name: All
+      summary:
+        desiredReady: 1
+        ready: 1
+  resourceKey:
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-bkp-acordao-completo
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-bkp-boletim-jurisprudencia
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-bkp-boletim-pessoal
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-bkp-dou
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-bkp-informativo-lc
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-bkp-jurisprudencia-selecionada
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-bkp-ministros
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-bkp-norma
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-bkp-processo-externo
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-bkp-processo-interno
+      namespace: solr
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: solr-bkp-sumula
+      namespace: solr
+  resourcesSha256Sum: b72d623de536011873886d1f92de9b90e01abda5f3dba6c3b8d26f7a46c8c869
+  summary:
+    desiredReady: 1
+    ready: 1
+  unavailable: 0
+  unavailablePartitions: 0

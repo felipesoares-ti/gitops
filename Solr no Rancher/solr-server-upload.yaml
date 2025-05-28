@@ -1,0 +1,268 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: Bundle
+metadata:
+  creationTimestamp: '2024-11-21T22:26:22Z'
+  finalizers:
+    - fleet.cattle.io/bundle-finalizer
+  generation: 40
+  labels:
+    fleet.cattle.io/commit: 710a5d85fdf9058a8f3cb5c66b76282d9fae7965
+    fleet.cattle.io/repo-name: gitlab-tcu
+  managedFields:
+    - apiVersion: fleet.cattle.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:finalizers:
+            .: {}
+            v:"fleet.cattle.io/bundle-finalizer": {}
+      manager: fleetcontroller
+      operation: Update
+      time: '2024-12-26T23:15:39Z'
+    - apiVersion: fleet.cattle.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:status:
+          .: {}
+          f:conditions: {}
+          f:display:
+            .: {}
+            f:readyClusters: {}
+          f:maxNew: {}
+          f:maxUnavailable: {}
+          f:maxUnavailablePartitions: {}
+          f:observedGeneration: {}
+          f:partitions: {}
+          f:resourceKey: {}
+          f:resourcesSha256Sum: {}
+          f:summary:
+            .: {}
+            f:desiredReady: {}
+            f:ready: {}
+          f:unavailable: {}
+          f:unavailablePartitions: {}
+      manager: fleetcontroller
+      operation: Update
+      subresource: status
+      time: '2025-05-23T00:00:16Z'
+    - apiVersion: fleet.cattle.io/v1alpha1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:labels:
+            .: {}
+            f:fleet.cattle.io/commit: {}
+            f:fleet.cattle.io/repo-name: {}
+        f:spec:
+          .: {}
+          f:defaultNamespace: {}
+          f:forceSyncGeneration: {}
+          f:ignore: {}
+          f:kustomize:
+            .: {}
+            f:dir: {}
+          f:namespaceLabels:
+            .: {}
+            f:team: {}
+          f:resources: {}
+          f:targetRestrictions: {}
+          f:targets: {}
+      manager: fleet
+      operation: Update
+      time: '2025-05-23T22:28:05Z'
+  name: solr-server-upload
+  namespace: fleet-default
+  resourceVersion: '645368684'
+  uid: c59c83dd-68a7-4ece-ad65-934bbdbd965f
+spec:
+  defaultNamespace: solr
+  forceSyncGeneration: 166
+  ignore: {}
+  kustomize:
+    dir: ./kustomize
+  namespaceLabels:
+    team: seint
+  resources:
+    - content: |
+        defaultNamespace: solr 
+        name: solr-server-upload
+        namespaceLabels:
+          team: seint
+        kustomize:
+          dir: ./kustomize
+      name: fleet.yaml
+    - content: |-
+        namespace: solr
+        resources:
+          - plugin-folder-nfs-pvc.yaml
+          - simple-upload-server-dep.yaml
+          - simple-upload-server-ing.yaml
+          - simple-upload-server-svc.yaml
+        commonLabels:
+          app: solr-upload-plugin-server
+          team: seint
+      name: kustomize/kustomization.yaml
+    - content: |
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: solr-plugin-folder
+          namespace: solr
+        spec:
+          accessModes:
+            - ReadWriteMany
+          storageClassName: nfs-client
+          resources:
+            requests:
+              storage: 1Gi
+      name: kustomize/plugin-folder-nfs-pvc.yaml
+    - content: |
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: solr-upload-plugin-server
+          labels:
+            app: solr-upload-plugin-server
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: solr-upload-plugin-server
+          template:
+            metadata:
+              name: solr-upload-plugin-server
+              labels:
+                app: solr-upload-plugin-server
+            spec:
+              nodeSelector:
+                solr: "true"
+              tolerations:
+              - effect: NoSchedule
+                key: solr
+                value: "true"
+                operator: Equal
+              automountServiceAccountToken: false
+              containers:
+                - name: solr-upload-plugin-server
+                  image: mayth/simple-upload-server:latest
+                  imagePullPolicy: IfNotPresent
+                  args:
+                    - '-addr'
+                    - '0.0.0.0:8080'
+                    - '-document_root'
+                    - '/files'
+                    - '-enable_auth'
+                    - '-max_upload_size'
+                    - '50048576'
+                    - '-read_write_tokens'
+                    - '$(token)'
+                  env:
+                    - name: token
+                      value: desenvolteste123
+                  volumeMounts:
+                    - mountPath: /files
+                      name: data-dir
+                  ports:
+                    - containerPort: 8080
+                      name: http
+                  readinessProbe:
+                    tcpSocket:
+                      port: 8080
+                    timeoutSeconds: 5
+                    initialDelaySeconds: 1
+                    failureThreshold: 3
+                  resources:
+                    requests:
+                      memory: 128Mi
+                      cpu: 100m
+                    limits:
+                      memory: 1Gi
+                      cpu: 500m
+              restartPolicy: Always
+              volumes:
+                - name: data-dir
+                  persistentVolumeClaim:
+                    claimName: solr-plugin-folder
+      name: kustomize/simple-upload-server-dep.yaml
+    - content: |
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+          name: solr-upload-plugin-server
+          annotations:
+            nginx.ingress.kubernetes.io/rewrite-target: /
+        spec:
+          rules:
+            - http:
+                paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                      service:
+                        name: solr-upload-plugin-server
+                        port:
+                          name: http
+              host: solr-upload.producao.rancher.tcu.gov.br
+      name: kustomize/simple-upload-server-ing.yaml
+    - content: |-
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: solr-upload-plugin-server
+        spec:
+          selector:
+            app: solr-upload-plugin-server
+          ports:
+            - protocol: TCP
+              port: 8080
+              targetPort: http
+      name: kustomize/simple-upload-server-svc.yaml
+  targetRestrictions:
+    - clusterName: c-5wl22
+  targets:
+    - clusterName: c-5wl22
+      ignore: {}
+status:
+  conditions:
+    - lastUpdateTime: '2025-05-23T00:00:16Z'
+      status: 'True'
+      type: Ready
+    - lastUpdateTime: '2024-12-26T23:07:47Z'
+      status: 'True'
+      type: Processed
+  display:
+    readyClusters: 1/1
+  maxNew: 50
+  maxUnavailable: 1
+  maxUnavailablePartitions: 0
+  observedGeneration: 40
+  partitions:
+    - count: 1
+      maxUnavailable: 1
+      name: All
+      summary:
+        desiredReady: 1
+        ready: 1
+  resourceKey:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: solr-plugin-folder
+      namespace: solr
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: solr-upload-plugin-server
+      namespace: solr
+    - apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      name: solr-upload-plugin-server
+      namespace: solr
+    - apiVersion: v1
+      kind: Service
+      name: solr-upload-plugin-server
+      namespace: solr
+  resourcesSha256Sum: b1c6a5eefe8314cfac64ceff45642a5db24f2622e4a494a6b9439fa70d52ffbd
+  summary:
+    desiredReady: 1
+    ready: 1
+  unavailable: 0
+  unavailablePartitions: 0
